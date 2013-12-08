@@ -1,20 +1,22 @@
 #!/usr/bin/env python
-#
-# Deletes all indices with a datestamp older than "days-to-keep" for daily
-# if you have hourly indices, it will delete all of those older than "hours-to-keep"
-#
-# This script presumes an index is named typically, e.g. logstash-YYYY.MM.DD
-# It will work with any name-YYYY.MM.DD or name-YYYY.MM.DD.HH type sequence
-#
-# Requires python and the following dependencies (all pip/easy_installable):
-#
-# pyes (python elasticsearch bindings, which might need simplejson)
-# argparse (built-in in python2.7 and higher, python 2.6 and lower will have to easy_install it)
-#
-# TODO: Proper logging instead of just print statements, being able to configure a decent logging level.
-#       Unit tests. The code is somewhat broken up into logical parts that may be tested separately.
-#       Better error reporting?
-#       Improve the get_index_epoch method to parse more date formats. Consider renaming (to "parse_date_to_timestamp"?)
+
+"""
+Deletes all indices with a datestamp older than "days-to-keep" for daily
+if you have hourly indices, it will delete all of those older than "hours-to-keep"
+
+This script presumes an index is named typically, e.g. logstash-YYYY.MM.DD
+It will work with any name-YYYY.MM.DD or name-YYYY.MM.DD.HH type sequence
+
+Requires python and the following dependencies (all pip/easy_installable):
+
+pyes (python elasticsearch bindings, which might need simplejson)
+argparse (built-in in python2.7 and higher, python 2.6 and lower will have to easy_install it)
+
+TODO: Proper logging instead of just print statements, being able to configure a decent logging level.
+      Unit tests. The code is somewhat broken up into logical parts that may be tested separately.
+      Better error reporting?
+      Improve the get_index_epoch method to parse more date formats. Consider renaming (to "parse_date_to_timestamp"?)
+"""
 
 import sys
 import time
@@ -109,7 +111,8 @@ def find_expired_indices(connection, days_to_keep=None, hours_to_keep=None, sepa
         else:
             print >> out, '{0} is {1} above the cutoff.'.format(index_name, timedelta(seconds=index_epoch-cutoff))
 
-def find_overusage_indices(connection, disk_space_to_keep, separator='.', prefix='logstash-', out=sys.stdout, err=sys.stderr):
+def find_overusage_indices(connection, disk_space_to_keep, separator='.',
+                        prefix='logstash-', out=sys.stdout, err=sys.stderr):
     """ Generator that yields over usage indices.
 
     :return: Yields tuples on the format ``(index_name, 0)`` where index_name
@@ -121,13 +124,18 @@ def find_overusage_indices(connection, disk_space_to_keep, separator='.', prefix
     disk_limit = disk_space_to_keep * 2**30
 
     for index_name in reversed(sorted(set(connection.get_indices().keys()))):
-
         if not index_name.startswith(prefix):
             print >> out, 'Skipping index due to missing prefix {0}: {1}'.format(prefix, index_name)
             continue
 
-    index_size = connection.status(index_name).get('indices').get(index_name).get('index').get('primary_size_in_bytes')
-    disk_usage += index_size
+        index_size = (
+            connection.status(index_name)
+                .get('indices')
+                .get(index_name)
+                .get('index')
+                .get('primary_size_in_bytes')
+        )
+        disk_usage += index_size
 
         if disk_usage > disk_limit:
             yield index_name, 0
